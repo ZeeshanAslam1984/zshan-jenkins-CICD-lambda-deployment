@@ -2,9 +2,11 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION = "ap-southeast-2"
-        S3_BUCKET  = "lambda-sam-artifacts-zeeshan"
-    }
+    AWS_REGION  = "ap-southeast-2"
+    S3_BUCKET   = "lambda-sam-artifacts-zeeshan"
+    AWS_ACCESS_KEY_ID     = credentials('aws-access-key')  // replace with your Jenkins credential ID
+    AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key') // replace with your Jenkins credential ID
+}
 
     stages {
         stage('Checkout') {
