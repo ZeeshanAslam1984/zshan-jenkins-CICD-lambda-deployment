@@ -20,7 +20,7 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
-                    sudo apt insatll python3-requests -y
+                    pip install requests
                 '''
             }
         }
