@@ -35,21 +35,22 @@ pipeline {
         }
 
         stage('Package & Deploy') {
-            steps {
-                sh '''
-                    sam package \
-                        --template-file lambda-app/.aws-sam/build/template.yaml \
-                        --s3-bucket $S3_BUCKET \
-                        --output-template-file packaged.yaml \
-                        --region $AWS_REGION
+    steps {
+        sh '''
+            sam package \
+              --template-file .aws-sam/build/template.yaml \
+              --s3-bucket lambda-sam-artifacts-zeeshan \
+              --output-template-file packaged.yaml \
+              --region ap-southeast-2
 
-                    sam deploy \
-                        --template-file packaged.yaml \
-                        --stack-name lambda-sam-stack \
-                        --capabilities CAPABILITY_IAM \
-                        --region $AWS_REGION
-                '''
-            }
-        }
+            sam deploy \
+              --template-file packaged.yaml \
+              --stack-name lambda-sam-stack-zeeshan \
+              --capabilities CAPABILITY_IAM \
+              --region ap-southeast-2
+        '''
+    }
+}
+
     }
 }
