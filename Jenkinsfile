@@ -2,45 +2,76 @@ pipeline {
     agent any
 
     environment {
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key')
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+        AWS_REGION = "ap-southeast-2"
+        S3_BUCKET  = "lambda-sam-artifacts-zeeshan"
     }
 
     stages {
-
-        stage('Setup') {
+        stage('Checkout') {
             steps {
-                // Optional: create a virtual environment
-                sh "python3 -m venv venv"
-                sh ". venv/bin/activate && pip install --upgrade pip"
-                sh ". venv/bin/activate && pip install -r lambda-app/tests/requirements.txt"
+                git branch: 'main',
+                    url: 'https://github.com/ZeeshanAslam1984/zshan-jenkins-CICD-lambda-deployment.git'
             }
         }
 
-        stage('Test') {
+        stage('Setup Environment') {
             steps {
-                sh ". venv/bin/activate && pytest lambda-app/tests --junitxml=results.xml"
-                junit "results.xml"
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+                '''
             }
         }
 
-        stage('Build') {
+        stage('Install AWS & SAM CLI if missing') {
             steps {
-                sh ". venv/bin/activate && sam build -t lambda-app/template.yaml"
+                sh '''
+                    if ! command -v aws &> /dev/null
+                    then
+                      echo "Installing AWS CLI..."
+                      curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                      unzip -o awscliv2.zip
+                      sudo ./aws/install
+                    fi
+
+                    if ! command -v sam &> /dev/null
+                    then
+                      echo "Installing AWS SAM CLI..."
+                      curl -Lo sam.zip https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip
+                      unzip -o sam.zip -d sam-installation
+                      sudo ./sam-installation/install
+                    fi
+                '''
             }
         }
 
-        stage('Deploy') {
+        stage('Build SAM App') {
             steps {
-                sh """
-                . venv/bin/activate && sam deploy \
-                    --stack-name my-lambda-stack \
-                    --region ap-southeast-2 \
-                    --no-confirm-changeset \
-                    --no-fail-on-empty-changeset
-                """
+                sh '''
+                    . venv/bin/activate
+                    sam build -t lambda-app/template.yaml
+                '''
             }
         }
 
+        stage('Package & Deploy') {
+            steps {
+                sh '''
+                    sam package \
+                        --template-file lambda-app/.aws-sam/build/template.yaml \
+                        --s3-bucket $S3_BUCKET \
+                        --output-template-file packaged.yaml \
+                        --region $AWS_REGION
+
+                    sam deploy \
+                        --template-file packaged.yaml \
+                        --stack-name lambda-sam-stack \
+                        --capabilities CAPABILITY_IAM \
+                        --region $AWS_REGION
+                '''
+            }
+        }
     }
 }
